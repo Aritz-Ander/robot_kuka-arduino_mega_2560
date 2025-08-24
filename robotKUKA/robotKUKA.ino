@@ -1,9 +1,11 @@
-const float STEPS_PER_REVGIRO = 200.0;                                                 // Pasos por revolución del motor (1.8° por paso)
-const float MICROSTEPSGIRO = 16.0;                                                     // Micropasos (ajustar según configuración del driver)
-const float PULLEY_TEETHGIRO = 20.0;                                                   // Número de dientes de la polea
-const float BELT_PITCHGIRO = 2.0;                                                      // Paso de la correa en mm (típicamente GT2=2mm)
-const float MM_PER_REVGIRO = PULLEY_TEETHGIRO * BELT_PITCHGIRO;                        // mm por revolución
-const float STEPS_PER_MMGIRO = (STEPS_PER_REVGIRO * MICROSTEPSGIRO) / MM_PER_REVGIRO;  // Pasos por mm
+#include "EjeMotor.h"
+
+const float STEPS_PER_REVGIRO   = 200.0;                                                  // Pasos por revolución del motor (1.8° por paso)
+const float MICROSTEPSGIRO      = 16.0;                                                   // Micropasos (ajustar según configuración del driver)
+const float PULLEY_TEETHGIRO    = 20.0;                                                   // Número de dientes de la polea
+const float BELT_PITCHGIRO      = 2.0;                                                    // Paso de la correa en mm (típicamente GT2=2mm)
+const float MM_PER_REVGIRO      = PULLEY_TEETHGIRO * BELT_PITCHGIRO;                      // mm por revolución
+const float STEPS_PER_MMGIRO    = (STEPS_PER_REVGIRO * MICROSTEPSGIRO) / MM_PER_REVGIRO;  // Pasos por mm
 // Variables globales
 long currentPositionGIROSteps = 0;  // Posición actual en pasos
 float currentPositionGIROMM = 0.0;  // Posición actual en mm
@@ -22,113 +24,6 @@ float currentPositionmanoMM = 0.0;  // Posición actual en mm
 
 // Buffer para comandos seriales
 String commandBuffer = "";
-
-struct EjeMotor {
-  const String name;
-  // Definición de pines
-  const int pulPin;     // Pin de pulso
-  const int dirPin;     // Pin de dirección
-  const int enablePin;  // Pin de habilitación (opcional)
-
-  // Parámetros de los motores
-  const int stepsPerRevolution;  // Pasos por revolución (ajustar según configuración del HSS86)
-
-  // Variables para control de tiempo y pulsos
-  unsigned long previousMicros = 0;
-  unsigned long currentMicros = 0;
-  unsigned long pulseDuration = 0;
-  bool pulseState = LOW;
-  int currentPosition = 0;
-  int targetPosition = 0;
-  bool isRunning = false;
-  int velocidad = 50;
-  int motorSpeed = 1000;
-
-  // Constructor
-  EjeMotor(String n, int pul, int dir, int en, int stepsRev)
-    : name(n), pulPin(pul), dirPin(dir), enablePin(en), stepsPerRevolution(stepsRev) {}
-
-  void move(int position) {
-    if (position == 0) {
-      doHoming();
-    } else {
-      moveSelectedPosition(position);
-    }
-  }
-
-  void moveSelectedPosition(int position) {
-    // Establecer dirección
-    if (position > currentPosition) {
-      digitalWrite(dirPin, HIGH);  // Sentido horario (CW)
-    } else {
-      digitalWrite(dirPin, LOW);  // Sentido antihorario (CCW)
-    }
-
-    // Iniciar movimiento
-    isRunning = true;
-    Serial.print(name + " moviendo a: ");
-    Serial.println(position);
-  }
-
-  void updateMotor() {
-    currentMicros = micros();
-
-    // Verificar si es tiempo de enviar un pulso
-    if (currentMicros - previousMicros >= pulseDuration) {
-      previousMicros = currentMicros;
-
-      if (currentPosition != targetPosition) {
-        // Cambiar estado del pin de pulso
-        pulseState = !pulseState;
-        digitalWrite(pulPin, pulseState);
-
-        // Sólo contamos un paso completo cuando el pulso va de HIGH a LOW
-        if (pulseState == LOW) {
-          // Actualizar posición según dirección
-          if (digitalRead(dirPin) == HIGH) {
-            currentPosition++;
-          } else {
-            currentPosition--;
-          }
-        }
-      } else {
-        // Llegamos a la posición objetivo
-        isRunning = false;
-        Serial.print(name + ": Posición alcanzada: ");
-        Serial.println(currentPosition);
-      }
-    }
-  }
-
-  void doHoming() {
-    Serial.println(name + ": Iniciando secuencia de homing ...");
-
-    // Configurar una velocidad más lenta para homing
-    int originalSpeed = motorSpeed;
-    motorSpeed = velocidad * 4;  // Velocidad lenta para homing
-    pulseDuration = velocidad;
-
-    targetPosition = 0;
-    isRunning = true;
-    // Establecer dirección
-    if (targetPosition > currentPosition) {
-      digitalWrite(dirPin, HIGH);  // Sentido horario (CW)
-    } else {
-      digitalWrite(dirPin, LOW);  // Sentido antihorario (CCW)
-    }
-    Serial.print(name + ": Moviendo a posición: ");
-    Serial.println(targetPosition);
-
-    // Restablecer velocidad original
-    motorSpeed = originalSpeed;
-    pulseDuration = velocidad;
-
-    // Restablecer posición a cero
-    currentPosition = 0;
-    targetPosition = 0;
-    Serial.println(name + ": Homing completado. Posición establecida a 0.");
-  }
-};
 
 enum MotorID {
   BASE,
@@ -164,24 +59,32 @@ EjeMotor* motores[MOTOR_COUNT] = { &base, &hombro, &codo, &muneca, &mano, &giro 
 
 void setup() {
   // Configuración de pines
-  pinMode(pulPinBASE, OUTPUT);
-  pinMode(dirPinBASE, OUTPUT);
-  pinMode(enablePinBASE, OUTPUT);
-  pinMode(pulPinHOMBRO, OUTPUT);
-  pinMode(dirPinHOMBRO, OUTPUT);
-  pinMode(enablePinHOMBRO, OUTPUT);
-  pinMode(pulPinCODO, OUTPUT);
-  pinMode(dirPinCODO, OUTPUT);
-  pinMode(enablePinCODO, OUTPUT);
-  pinMode(pulPinMUNECA, OUTPUT);
-  pinMode(dirPinMUNECA, OUTPUT);
-  pinMode(enablePinMUNECA, OUTPUT);
-  pinMode(pulPinMANO, OUTPUT);
-  pinMode(dirPinMANO, OUTPUT);
-  pinMode(enablePinMANO, OUTPUT);
-  pinMode(pulPinGIRO, OUTPUT);
-  pinMode(dirPinGIRO, OUTPUT);
-  pinMode(enablePinGIRO, OUTPUT);
+  pinMode(2, OUTPUT);
+  pinMode(3, OUTPUT);
+  pinMode(40, OUTPUT);
+  pinMode(4, OUTPUT);
+  pinMode(5, OUTPUT);
+  pinMode(41, OUTPUT);
+  pinMode(6, OUTPUT);
+  pinMode(7, OUTPUT);
+  pinMode(42, OUTPUT);
+  pinMode(8, OUTPUT);
+  pinMode(9, OUTPUT);
+  pinMode(43, OUTPUT);
+  pinMode(10, OUTPUT);
+  pinMode(11, OUTPUT);
+  pinMode(44, OUTPUT);
+  pinMode(12, OUTPUT);
+  pinMode(13, OUTPUT);
+  pinMode(45, OUTPUT);
+
+  // Habilitar drivers (lógica invertida en algunos modelos)
+  digitalWrite(40, LOW);
+  digitalWrite(41, LOW);
+  digitalWrite(42, LOW);
+  digitalWrite(43, LOW);
+  digitalWrite(44, LOW);
+  digitalWrite(45, LOW);
 
   // Inicializar comunicación serial
   Serial.begin(115200);
@@ -191,22 +94,6 @@ void setup() {
   Serial.println("Movimiento múltiple: B[posición],H[posición],C[posición],M[posición],A[posición],G[posición]");
   Serial.println("Homing: BO, HO, CO, MO, AO, GO");
   Serial.println("Estado actual: ?");
-
-  // Calcular duración de pulso inicial según velocidad por defecto
-  pulseDurationBASE = velocidadBASE;
-  pulseDurationHOMBRO = velocidadHOMBRO;
-  pulseDurationCODO = velocidadCODO;
-  pulseDurationMUNECA = velocidadMUNECA;
-  pulseDurationMANO = velocidadMANO;
-  pulseDurationGIRO = velocidadGIRO;
-
-  // Habilitar drivers (lógica invertida en algunos modelos)
-  digitalWrite(enablePinBASE, LOW);
-  digitalWrite(enablePinHOMBRO, LOW);
-  digitalWrite(enablePinCODO, LOW);
-  digitalWrite(enablePinMUNECA, LOW);
-  digitalWrite(enablePinMANO, LOW);
-  digitalWrite(enablePinGIRO, LOW);
 }
 
 void loop() {
@@ -237,6 +124,32 @@ void readSerialCommands() {
   }
 }
 
+void processCommand(String command) {
+  Serial.println("command: "+command);
+  if (command.length() < 1) {
+    Serial.println("Comando vacío");
+    return;
+  }
+
+  if (command == "?") {
+    showCurrentInfo();
+    return;
+  }
+
+  int startPos = 0;
+  int endPos = 0;
+  do{
+    endPos = command.indexOf(',', startPos);  // obtener trozo de comando
+    String msg= (endPos == -1)  
+      ? command.substring(startPos)          // si no hay "," coger todo el el mensaje a partir del indice start
+      : command.substring(startPos,endPos);   // si hay "," coger desde start hasta el coma                            
+    
+    processSingleCommand(msg);                // procesar el comando obtenido  
+    startPos= endPos + 1;                     // saltar el coma
+
+  }while(endPos != -1);                       // si no habia "," significa que no hay mas comandos despues
+}
+
 void processSingleCommand(String cmd) {
   if (cmd.length() < 1) return;
 
@@ -254,50 +167,16 @@ void processSingleCommand(String cmd) {
   motores[motorId]->move(position);
 }
 
-void processCommand(String command) {
-  if (command.length() < 1) {
-    Serial.println("Comando vacío");
-    return;
-  }
-
-  if (command == "?") {
-    showCurrentInfo();
-    return;
-  }
-
-  // Verificar si es un comando múltiple
-  if (command.indexOf(',') != -1) {
-    int startPos = 0;
-    int endPos = 0;
-    while (endPos != -1) {
-      endPos = command.indexOf(',', startPos);
-      String part;
-      if (endPos != -1) {
-        part = command.substring(startPos, endPos);
-        startPos = endPos + 1;
-      } else {
-        part = command.substring(startPos);
-      }
-      // Procesar cada parte como comando simple
-      processSingleCommand(part);
-    }
-    Serial.println("Iniciando movimiento multimotores");
-  } else {
-    // Si no es múltiple, procesa como comando simple
-    processSingleCommand(command);
-  }
-}
-
 void showCurrentInfo() {
   Serial.println("\n--- Estado Actual ---");
   Serial.print("BASE: ");
-  Serial.println(currentPositionBASE);
+  Serial.println(motores[BASE]->currentPosition);
   Serial.print("HOMBRO: ");
-  Serial.println(currentPositionHOMBRO);
+  Serial.println(motores[HOMBRO]->currentPosition);
   Serial.print("CODO: ");
-  Serial.println(currentPositionCODO);
+  Serial.println(motores[CODO]->currentPosition);
   Serial.print("MUÑECA: ");
-  Serial.println(currentPositionMUNECA);
+  Serial.println(motores[MUNECA]->currentPosition);
   Serial.print("MANO: ");
   Serial.print(currentPositionmanoMM);
   Serial.println(" mm");
