@@ -47,12 +47,12 @@ MotorID charToMotorID(char c) {
   }
 }
 
-EjeMotor base("BASE", 2, 3, 40, 1000);
-EjeMotor hombro("HOMBRO", 4, 5, 41, 1000);
-EjeMotor codo("CODO", 6, 7, 42, 1000);
-EjeMotor muneca("MUNECA", 8, 9, 43, 1000);
-EjeMotor mano("MANO", 10, 11, 44, 1000);
-EjeMotor giro("GIRO", 12, 13, 45, 1000);
+EjeMotor base("BASE", 2, 3, 37, 1000);
+EjeMotor hombro("HOMBRO", 4, 5, 38, 1000);
+EjeMotor codo("CODO", 8, 9, 39, 1000);
+EjeMotor muneca("MUNECA", 24, 25, 36, 1000);
+EjeMotor mano("MANO", 10, 11, 41, 2000);
+EjeMotor giro("GIRO", 12, 13, 42, 2000);
 
 // Crear array de punteros con los motores
 EjeMotor* motores[MOTOR_COUNT] = { &base, &hombro, &codo, &muneca, &mano, &giro };
@@ -61,30 +61,30 @@ void setup() {
   // Configuración de pines
   pinMode(2, OUTPUT);
   pinMode(3, OUTPUT);
-  pinMode(40, OUTPUT);
   pinMode(4, OUTPUT);
   pinMode(5, OUTPUT);
-  pinMode(41, OUTPUT);
-  pinMode(6, OUTPUT);
-  pinMode(7, OUTPUT);
-  pinMode(42, OUTPUT);
   pinMode(8, OUTPUT);
   pinMode(9, OUTPUT);
-  pinMode(43, OUTPUT);
   pinMode(10, OUTPUT);
   pinMode(11, OUTPUT);
-  pinMode(44, OUTPUT);
   pinMode(12, OUTPUT);
   pinMode(13, OUTPUT);
-  pinMode(45, OUTPUT);
+  pinMode(24, OUTPUT);
+  pinMode(25, OUTPUT);
+  pinMode(36, OUTPUT);
+  pinMode(37, OUTPUT);
+  pinMode(38, OUTPUT);
+  pinMode(39, OUTPUT);
+  pinMode(41, OUTPUT);
+  pinMode(42, OUTPUT);
 
   // Habilitar drivers (lógica invertida en algunos modelos)
-  digitalWrite(40, LOW);
+  digitalWrite(36, LOW);
+  digitalWrite(37, LOW);
+  digitalWrite(38, LOW);
+  digitalWrite(39, LOW);
   digitalWrite(41, LOW);
   digitalWrite(42, LOW);
-  digitalWrite(43, LOW);
-  digitalWrite(44, LOW);
-  digitalWrite(45, LOW);
 
   // Inicializar comunicación serial
   Serial.begin(115200);
